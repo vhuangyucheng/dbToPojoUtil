@@ -3,8 +3,8 @@
 
 ## 作用：完成数据库类转换成都是String类型的实体类
 ## 操作：在资源文件夹下创建properties/dbToPojoUtil.properties文件
-###数据库我写死了在代码，需要的自己修改下链接数据库的url
-######  必填部分 #########<br>
+### 数据库我写死了在代码，需要的自己修改下链接数据库的url
+######必填部分 #########<br>
 #包名<br>
 packageOutPath=com.kooing.saas.params.admin.service.param.response<br>
 #数据库名<br>
@@ -16,7 +16,7 @@ importPackage=com.kooing.framework.param.common.request.BaseReq,lombok.Getter,lo
 #源文件目录，idea下默认/src/main/java/<br>
 sourceRoot=/src/main/java/<br><br>
 <br>
-####   可选部分    ############<br>
+####可选部分    ############<br>
 #注解,如果有多个注解用(,)隔开<br>
 annotation=@Setter,@Getter<br>
 #extend继承<br>
