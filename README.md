@@ -7,8 +7,6 @@
 ######必填部分 #########<br>
 #包名<br>
 packageOutPath=com.kooing.saas.params.admin.service.param.response<br>
-#数据库名<br>
-dbName="db_kooing_saas"<br>
 #表名<br>
 tableName=tb_activity_reg<br>
 #导入的包,如果有多个包用(,)隔开,包名其实不必写全，可在ide上自动补全<br>
