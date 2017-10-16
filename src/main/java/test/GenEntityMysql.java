@@ -7,30 +7,35 @@ package test;
  * @Modified by :
  */
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
+import lombok.Data;
+
+import java.io.*;
+import java.sql.*;
+import java.util.*;
 import java.util.Date;
 
+@Data
 public class GenEntityMysql {
 
     private String packageOutPath = "com.user.entity";//指定实体生成所在包的路径
-    private String authorName = "封狼居胥";//作者名字
-    private String tablename = "user";//表名
+    private String authorName = "kooing";//作者名字
+    private String tableName = "user";//表名
+    private String[] importPackage;//导入的包
+    private String[] annotation;//注解
+    private String implementsObject;//实现的接口
+    private String extendsObject;//继承的对象
+    private String sourceRoot = "/src/main/java/";
+    private String classSuffix;//添加的类前缀
+    private String classPrefix;//添加的类后缀
+    private Map<String, String> colComment;//列在数据的comment
     private String[] colnames; // 列名数组
     private String colTypes; //列名类型数组
+    private String dbComment;//是否注入数据库注释
     private int[] colSizes; //列名大小数组
-    private boolean f_util = false; // 是否需要导入包java.util.*
-    private boolean f_sql = false; // 是否需要导入包java.sql.*
+
 
     //数据库连接
-    private static final String URL = "jdbc:mysql://localhost:3306/db_kooing_saas";
+    private static final String URL = "jdbc:mysql://localhost:3306/db_kooing_saas?useUnicode=true&characterEncoding=utf-8";
     private static final String NAME = "root";
     private static final String PASS = "";
     private static final String DRIVER = "com.mysql.jdbc.Driver";
@@ -39,44 +44,65 @@ public class GenEntityMysql {
      * 构造函数
      */
     public GenEntityMysql() {
+        Properties properties = new Properties();
+        try {
+            //读取属性文件a.propertiesD:\ideaWorkSpace\dbToPojoUtil\src\main\resources\properties\dbToPojoUtil.properties
+            InputStream in = new BufferedInputStream(this.getClass().getResourceAsStream("/properties/dbToPojoUtil.properties"));
+            properties.load(in);     ///加载属性列表
+
+            packageOutPath = properties.getProperty("packageOutPath");
+            authorName = properties.getProperty("authorName");
+            tableName = properties.getProperty("tableName");
+            sourceRoot = properties.getProperty("sourceRoot");
+            extendsObject = properties.getProperty("extendsObject");
+            implementsObject = properties.getProperty("implementsObject");
+            classSuffix = properties.getProperty("classSuffix");
+            classPrefix = properties.getProperty("classPrefix");
+            String importPackageTemp = properties.getProperty("importPackage");
+            String annotationTemp = properties.getProperty("annotation");
+            dbComment = properties.getProperty("dbComment");
+            importPackage = importPackageTemp.split(",");
+            annotation = annotationTemp.split(",");
+
+            in.close();
+
+        } catch (Exception e) {
+            System.out.println(e);
+        }
         //创建连接
         Connection con;
-        //查要生成实体类的表
-        String sql = "select * from " + tablename;
+        //查要生成实体类的表 todo
+        String sql = "select * from " + tableName;
         PreparedStatement pStemt = null;
         try {
             try {
                 Class.forName(DRIVER);
             } catch (ClassNotFoundException e1) {
-                // TODO Auto-generated catch block
                 e1.printStackTrace();
             }
             con = DriverManager.getConnection(URL, NAME, PASS);
             pStemt = con.prepareStatement(sql);
             ResultSetMetaData rsmd = pStemt.getMetaData();
             int size = rsmd.getColumnCount();    //统计列
-            colnames = new String[size];
             colTypes = new String();
             colSizes = new int[size];
-            for (int i = 0; i < size; i++) {
-                colnames[i] = rsmd.getColumnName(i + 1);
-                colTypes = rsmd.getColumnTypeName(i + 1);
+            colnames = new String[size];
+            if (!dbComment.equals("")) {
+                colComment = getComment(tableName);
+            }
 
+            for (int i = 0; i < size; i++) {
+                colnames[i] = initcap(rsmd.getColumnName(i + 1));
+                colTypes = rsmd.getColumnTypeName(i + 1);
                 colSizes[i] = rsmd.getColumnDisplaySize(i + 1);
             }
 
-            String content = parse(colnames, colTypes, colSizes);
+            String content = parse(colnames, colSizes);
 
             try {
                 File directory = new File("");
-                //System.out.println("绝对路径："+directory.getAbsolutePath());
-                //System.out.println("相对路径："+directory.getCanonicalPath());
-                String path = this.getClass().getResource("").getPath();
 
-                System.out.println(path);
-                System.out.println("src/?/" + path.substring(path.lastIndexOf("/com/", path.length())));
-//				String outputPath = directory.getAbsolutePath()+ "/src/"+path.substring(path.lastIndexOf("/com/", path.length()), path.length()) + initcap(tablename) + ".java";
-                String outputPath = directory.getAbsolutePath() + "/src/" + this.packageOutPath.replace(".", "/") + "/" + initcap(tablename) + ".java";
+                String outputPath = directory.getAbsolutePath() + sourceRoot + this.packageOutPath.replace(".", "/") + "/" + toUpperCase(initcap(tableName)) + ".java";
                 FileWriter fw = new FileWriter(outputPath);
                 PrintWriter pw = new PrintWriter(fw);
                 pw.println(content);
@@ -92,7 +118,6 @@ public class GenEntityMysql {
 //			try {
 //				con.close();
 //			} catch (SQLException e) {
-//				// TODO Auto-generated catch block
 //				e.printStackTrace();
 //			}
         }
@@ -102,26 +127,32 @@ public class GenEntityMysql {
      * 功能：生成实体类主体代码
      *
      * @param colnames
-     * @param colTypes
      * @param colSizes
      * @return
      */
-    private String parse(String[] colnames, String[] colTypes, int[] colSizes) {
+    private String parse(String[] colnames, int[] colSizes) {
         StringBuffer sb = new StringBuffer();
         //包名
 
-        sb.append("package " + this.packageOutPath + ";\r\n");
-        sb.append("\r\n");
-        //注释部分
-        sb.append("   /**\r\n");
-        sb.append("    * " + tablename + " 实体类\r\n");
-        sb.append("    * " + new Date() + "\r\n");
-        sb.append("    * " + "@author:" + this.authorName + "\r\n");
-        sb.append("    */ \r\n");
+        sb.append("package " + this.packageOutPath + ";\r\n\r\n");
         //导入包
-        sb.append("import java.util.Date;\r\n");
+        for (String onePackage : this.importPackage) {
+            sb.append("import " + onePackage + ";" + "\r\n");
+        }
+        //注释部分
+        sb.append("\r\n");
+        sb.append("/**\r\n");
+        sb.append("* " + "@Author\t:" + this.authorName + "\r\n");
+        sb.append("* " + "@Date\t:" + new Date() + "\r\n");
+        sb.append("* " + "@Desription\t:" + this.tableName + " 实体类\r\n");
+        sb.append("* " + "@Modified\t:" + "\r\n");
+        sb.append("*/ \r\n");
+        //注解
+        for (String oneAnnotion : this.annotation) {
+            sb.append(oneAnnotion + "\r\n");
+        }
         //实体部分
-        sb.append("\r\n\r\npublic class " + initcap(tablename) + "{\r\n");
+        sb.append("public class " + extendAndImplements(toUpperCase(initcap(tableName))) + "{\r\n");
         processAllAttrs(sb);//属性
         sb.append("}\r\n");
 
@@ -137,14 +168,15 @@ public class GenEntityMysql {
     private void processAllAttrs(StringBuffer sb) {
 
         for (int i = 0; i < colnames.length; i++) {
-            sb.append("\tprivate " + " String " + colnames[i] + ";\r\n");
+            sb.append("\t/** " + colComment.get(colnames[i]) + "*/\r\n");
+            sb.append("\tprivate " + "String " + colnames[i] + ";\r\n");
         }
 
     }
 
 
     /**
-     * 功能：将输入字符串的首字母改成大写
+     * 功能：把下划线去掉同时变大写字母
      *
      * @param str
      * @return
@@ -152,24 +184,88 @@ public class GenEntityMysql {
     private String initcap(String str) {
 
         char[] ch = str.toCharArray();
+        for (int i = 1; i < str.length(); i++) {
+            if (ch[i] == '_') {
+                if (ch[i + 1] >= 'a' && ch[i + 1] <= 'z') {
+                    ch[i + 1] = (char) (ch[i + 1] - 32);
+                }
+            }
+        }
+        return new String(ch).replaceAll("_", "");
+    }
+
+    /**
+     * @return :
+     * @Author : kooing
+     * @Date : 2017/10/16 15:31
+     * @Desription : 首字母大写
+     */
+    private String toUpperCase(String str) {
+
+        char[] ch = str.toCharArray();
         if (ch[0] >= 'a' && ch[0] <= 'z') {
             ch[0] = (char) (ch[0] - 32);
         }
 
-        return new String(ch);
+        String stringTemp = new String(ch).replaceAll("_", "");
+        return classPrefix + stringTemp + classSuffix;
     }
 
+    /**
+     * @return :todo
+     * @Author : kooing
+     * @Date : 2017/10/16 17:51
+     * @Desription : 添加注释
+     */
+    private Map<String, String> getComment(String tableName) {
+        Map<String, String> map = new HashMap<String, String>();
+        String URL = "jdbc:mysql://localhost:3306/information_schema?useUnicode=true&characterEncoding=utf-8";
+        String sql = "SELECT COLUMN_NAME, COLUMN_COMMENT " +
+                "FROM" +
+                "`COLUMNS` " +
+                "WHERE table_name='" + tableName + "'";
+        try {
+            Class.forName(DRIVER);
+            Connection con = DriverManager.getConnection(URL, NAME, PASS);
+            PreparedStatement statement = con.prepareStatement(sql);
+            ResultSet rs = statement.executeQuery();
+            for (; rs.next(); ) {
+                map.put(initcap(rs.getString("COLUMN_NAME")), rs.getString("COLUMN_COMMENT"));
+            }
+        } catch (Exception e) {
+            e.getStackTrace();
+        }
+        return map;
+    }
+
+    /**
+     * @return :
+     * @Author : kooing
+     * @Date : 2017/10/16 15:14
+     * @Desription : 处理了继承，和实现接口
+     */
+    private String extendAndImplements(String classString) {
+        if (extendsObject.equals("")) {
+            if (implementsObject.equals("")) {
+
+            } else {
+                classString += " implements " + implementsObject;
+            }
+        } else if (implementsObject.equals("")) {
+            classString += " extends " + extendsObject;
+        } else {
+            classString += " extends " + extendsObject + " implements " + implementsObject;
+        }
+        return classString;
+    }
 
     /**
      * 出口
-     * TODO
      *
      * @param args
      */
     public static void main(String[] args) {
-
         new GenEntityMysql();
 
     }
-
 }

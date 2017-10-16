@@ -21,6 +21,19 @@
       <version>5.1.34</version>
     </dependency>
 
+    <!-- lombok -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.14.8</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.kooing</groupId>
+      <artifactId>kooing-framework-dependency</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+
   </dependencies>
   <build>
     <finalName>kooing-dbToPojoUtil</finalName>
