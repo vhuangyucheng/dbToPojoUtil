@@ -29,10 +29,4 @@ classSuffix=bb<br>
 classPrefix=Aa<br>
 #注入数据库字段注释(1),默认不开<br>
 dbComment=1<br>
-1
-2
-3
-4
-5
-7
-8
+9
