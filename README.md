@@ -30,5 +30,4 @@ classPrefix=Aa<br>
 #注入数据库字段注释(1),默认不开<br>
 dbComment=1<br>
 
-6
-ganglai
+4time
