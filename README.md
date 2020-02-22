@@ -29,5 +29,7 @@ classSuffix=bb<br>
 classPrefix=Aa<br>
 #注入数据库字段注释(1),默认不开<br>
 dbComment=1<br>
-2second commit
+
+
+3second commit
 1
